@@ -32,6 +32,7 @@ add_library(routeguard_core
   src/bgp_update.cpp
   src/aspa.cpp
   src/state_store.cpp
+  src/mrt.cpp
 )
 target_include_directories(routeguard_core PUBLIC include PRIVATE src)
 target_link_libraries(routeguard_core PUBLIC routeguard_flags)
@@ -50,6 +51,7 @@ if(ROUTEGUARD_BUILD_TESTS)
     tests/test_bgp_update.cpp
     tests/test_aspa.cpp
     tests/test_state_store.cpp
+    tests/test_mrt.cpp
   )
   target_link_libraries(routeguard_tests PRIVATE routeguard_core)
   target_include_directories(routeguard_tests PRIVATE src)
