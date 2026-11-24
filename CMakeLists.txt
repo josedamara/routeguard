@@ -13,6 +13,8 @@ endif()
 option(ROUTEGUARD_SANITIZE "Build with AddressSanitizer + UndefinedBehaviorSanitizer" OFF)
 option(ROUTEGUARD_WERROR "Treat warnings as errors" OFF)
 option(ROUTEGUARD_BUILD_TESTS "Build unit tests" ON)
+option(ROUTEGUARD_BUILD_BENCH "Build benchmarks" ON)
+option(ROUTEGUARD_FUZZ "Build libFuzzer targets (clang only)" OFF)
 
 # Shared warning / sanitizer flags, applied to every target we own.
 add_library(routeguard_flags INTERFACE)
@@ -46,6 +48,22 @@ foreach(agent ingest validator alert)
   add_executable(routeguard-${agent} apps/agents/${agent}.cpp)
   target_link_libraries(routeguard-${agent} PRIVATE routeguard_core)
 endforeach()
+
+if(ROUTEGUARD_BUILD_BENCH)
+  foreach(bench bench_lookup bench_store)
+    add_executable(${bench} bench/${bench}.cpp)
+    target_link_libraries(${bench} PRIVATE routeguard_core)
+  endforeach()
+endif()
+
+if(ROUTEGUARD_FUZZ)
+  # Compiled from source (not linked against routeguard_core) so the decoder
+  # itself gets libFuzzer's coverage instrumentation.
+  add_executable(fuzz_mrt fuzz/fuzz_mrt.cpp src/mrt.cpp src/prefix.cpp src/bgp_update.cpp)
+  target_include_directories(fuzz_mrt PRIVATE include src)
+  target_compile_options(fuzz_mrt PRIVATE -g -O1 -fsanitize=fuzzer,address,undefined)
+  target_link_options(fuzz_mrt PRIVATE -fsanitize=fuzzer,address,undefined)
+endif()
 
 if(ROUTEGUARD_BUILD_TESTS)
   enable_testing()
