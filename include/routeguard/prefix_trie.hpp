@@ -18,8 +18,9 @@ namespace rg {
 // structure could later be placed in shared memory (stage 2) because indices
 // stay valid across processes while pointers do not.
 //
-// TODO(stage 5): path-compress this into a Patricia trie and benchmark
-// lookups/sec and memory against this baseline on a full routing table.
+// PatriciaTrie (patricia_trie.hpp) is the path-compressed alternative;
+// bench/bench_lookup compares the two on the real global VRP set, and this
+// one wins on lookup latency there (see the note in rpki.hpp).
 template <typename V>
 class PrefixTrie {
  public:
@@ -80,6 +81,7 @@ class PrefixTrie {
 
   std::size_t size() const noexcept { return size_; }
   std::size_t node_count() const noexcept { return nodes_.size(); }
+  std::size_t memory_bytes() const noexcept { return nodes_.capacity() * sizeof(Node); }
 
  private:
   // The root is index 0 and is never anyone's child, so 0 can mean "no child".
