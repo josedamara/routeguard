@@ -24,8 +24,7 @@ constexpr std::uint8_t kAttrFlagExtendedLength = 0x10;
 
 constexpr std::uint8_t kSegAsSet = 1;
 constexpr std::uint8_t kSegAsSequence = 2;
-constexpr std::uint8_t kSegConfedSequence = 3;
-constexpr std::uint8_t kSegConfedSet = 4;
+constexpr std::uint8_t kSegConfedSet = 4;  // 3 = AS_CONFED_SEQUENCE, 4 = AS_CONFED_SET
 
 constexpr std::size_t kMaxRecordLength = 16U << 20;
 
@@ -116,8 +115,8 @@ bool read_as_path(std::span<const std::uint8_t> data, std::size_t asn_size, AsPa
       path.length += 1;
       path.ends_in_set = true;
     }
-    // Confederation segments (kSegConfedSequence / kSegConfedSet) are local
-    // to the confederation and ignored, as for path length.
+    // Confederation segments (types 3 and 4) are local to the confederation
+    // and ignored, as for path length.
   }
   return true;
 }
