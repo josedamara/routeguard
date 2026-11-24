@@ -1,0 +1,11 @@
+build/
+.cache/
+compile_commands.json
+.claude/
+# Large downloaded datasets (fetch with scripts/)
+data/vrps.json
+data/vrps.csv
+data/aspas.csv
+data/ris/
+data/updates*.txt
+results/raw/

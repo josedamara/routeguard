@@ -1,0 +1,9 @@
+build/
+.claude/
+.git/
+data/vrps.json
+data/vrps.csv
+data/aspas.csv
+data/ris/
+data/updates*.txt
+results/raw/
