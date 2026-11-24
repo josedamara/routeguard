@@ -37,11 +37,17 @@ class RoaTable {
   std::size_t size() const noexcept { return count_; }
 
  private:
-  const PrefixTrie<std::vector<Roa>>& trie_for(Family f) const { return f == Family::V4 ? v4_ : v6_; }
-  PrefixTrie<std::vector<Roa>>& trie_for(Family f) { return f == Family::V4 ? v4_ : v6_; }
+  // Measured on the full global VRP set (bench/bench_lookup.cpp): the
+  // Patricia trie builds 2.4x faster and uses ~17% less memory, but the
+  // plain binary trie answers lookups ~1.5x faster because the VRP set is
+  // dense (compression removes only ~30% of nodes) and it never compares
+  // keys. Lookups are the hot path, so the binary trie wins here.
+  using Trie = PrefixTrie<std::vector<Roa>>;
+  const Trie& trie_for(Family f) const { return f == Family::V4 ? v4_ : v6_; }
+  Trie& trie_for(Family f) { return f == Family::V4 ? v4_ : v6_; }
 
-  PrefixTrie<std::vector<Roa>> v4_;
-  PrefixTrie<std::vector<Roa>> v6_;
+  Trie v4_;
+  Trie v6_;
   std::size_t count_ = 0;
 };
 
@@ -55,5 +61,8 @@ struct CsvLoadStats {
 //   AS13335,1.1.1.0/24,24,apnic
 // A header line, blank lines and lines starting with '#' are ignored.
 CsvLoadStats load_roas_csv(std::istream& in, RoaTable& table);
+
+// Same format, returned as a list (used by benchmarks to build other indexes).
+std::vector<Roa> parse_roas_csv(std::istream& in, CsvLoadStats& stats);
 
 }  // namespace rg

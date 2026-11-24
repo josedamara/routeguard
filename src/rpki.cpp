@@ -41,7 +41,21 @@ RovState RoaTable::validate(const Prefix& route, std::uint32_t origin) const {
 }
 
 CsvLoadStats load_roas_csv(std::istream& in, RoaTable& table) {
+  CsvLoadStats parsed;
   CsvLoadStats stats;
+  for (const Roa& roa : parse_roas_csv(in, parsed)) {
+    if (table.add(roa)) {
+      ++stats.loaded;
+    } else {
+      ++stats.skipped;
+    }
+  }
+  stats.skipped += parsed.skipped;
+  return stats;
+}
+
+std::vector<Roa> parse_roas_csv(std::istream& in, CsvLoadStats& stats) {
+  std::vector<Roa> roas;
   std::string raw;
   while (std::getline(in, raw)) {
     const auto line = detail::trim(raw);
@@ -61,13 +75,10 @@ CsvLoadStats load_roas_csv(std::istream& in, RoaTable& table) {
       if (detail::trim(fields[0]) != "ASN") ++stats.skipped;
       continue;
     }
-    if (table.add(Roa{*prefix, *max_len, *asn})) {
-      ++stats.loaded;
-    } else {
-      ++stats.skipped;
-    }
+    roas.push_back(Roa{*prefix, *max_len, *asn});
+    ++stats.loaded;
   }
-  return stats;
+  return roas;
 }
 
 }  // namespace rg
