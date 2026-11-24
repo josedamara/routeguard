@@ -4,8 +4,9 @@
 //
 // 1. Cross-process ping-pong. Process A writes slot "ping", process B wakes,
 //    reads it and writes "pong", A wakes and reads it. One-way latency =
-//    round trip / 2. Run twice: readers blocking on the futex (idle readers
-//    use no CPU) and readers busy-polling (lowest latency, burns a core).
+//    round trip / 2. Three reader strategies: futex only (idle readers use
+//    no CPU), busy-poll (lowest latency, burns a core) and the default
+//    spin-then-park (spin 50 us, then sleep on the futex).
 // 2. Single-process write and read throughput with route-sized records.
 
 #include <sys/wait.h>
@@ -46,15 +47,28 @@ TableReader open_retry(const std::string& name) {
   }
 }
 
+enum class Mode { Futex, BusyPoll, SpinThenPark };
+
+const char* mode_name(Mode m) {
+  switch (m) {
+    case Mode::Futex: return "futex-only";
+    case Mode::BusyPoll: return "busy-poll";
+    case Mode::SpinThenPark: return "spin-then-park";
+  }
+  return "?";
+}
+
 // Waits for the next change on `r` and returns the value in slot 0.
-std::uint64_t receive(TableReader& r, bool spin) {
+std::uint64_t receive(TableReader& r, Mode mode) {
   std::array<SlotId, 64> changes{};
   while (true) {
-    if (spin) {
-      while (!r.has_changes()) {
-      }
-    } else {
-      r.wait_for_changes(std::chrono::seconds(5));
+    switch (mode) {
+      case Mode::BusyPoll:
+        while (!r.has_changes()) {
+        }
+        break;
+      case Mode::Futex: r.wait_for_changes(std::chrono::seconds(5), std::chrono::nanoseconds(0)); break;
+      case Mode::SpinThenPark: r.wait_for_changes(std::chrono::seconds(5)); break;
     }
     if (r.drain_changes(changes).count > 0) break;
   }
@@ -63,7 +77,7 @@ std::uint64_t receive(TableReader& r, bool spin) {
   return v;
 }
 
-void ping_pong(bool spin, std::uint64_t iters) {
+void ping_pong(Mode spin, std::uint64_t iters) {
   const std::string ping = "/rgbench.ping." + std::to_string(getpid());
   const std::string pong = "/rgbench.pong." + std::to_string(getpid());
   TableWriter::unlink(ping);
@@ -100,7 +114,7 @@ void ping_pong(bool spin, std::uint64_t iters) {
   TableWriter::unlink(ping);
   TableWriter::unlink(pong);
 
-  std::printf("  %-12s one-way %s\n", spin ? "busy-poll" : "futex-wait",
+  std::printf("  %-15s one-way %s\n", mode_name(spin),
               rg::LatencyRecorder::format(one_way.summarize(), 1000.0, "us").c_str());
 }
 
@@ -145,8 +159,9 @@ int main(int argc, char** argv) {
     if (std::string(argv[i]) == "--iters") iters = std::strtoull(argv[i + 1], nullptr, 10);
 
   std::printf("[1] cross-process notification latency (%llu round trips)\n", static_cast<unsigned long long>(iters));
-  ping_pong(false, iters);
-  ping_pong(true, iters);
+  ping_pong(Mode::Futex, iters);
+  ping_pong(Mode::BusyPoll, iters);
+  ping_pong(Mode::SpinThenPark, iters);
   std::printf("[2] single-process throughput\n");
   throughput();
   return 0;
