@@ -1,0 +1,6 @@
+ASN,IP Prefix,Max Length,Trust Anchor
+AS13335,1.1.1.0/24,24,apnic
+AS64500,192.0.2.0/24,24,example
+AS64501,198.51.100.0/24,26,example
+AS0,203.0.113.0/24,24,example
+AS64502,2001:db8::/32,48,example
