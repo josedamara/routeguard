@@ -58,15 +58,6 @@ void Prefix::clear_host_bits() noexcept {
   std::fill(bytes_.begin() + first_zero, bytes_.end(), std::uint8_t{0});
 }
 
-int Prefix::common_length(const Prefix& a, const Prefix& b, int limit) noexcept {
-  for (int i = 0; i * 8 < limit; ++i) {
-    const auto x = static_cast<std::uint8_t>(a.bytes_[static_cast<std::size_t>(i)] ^
-                                             b.bytes_[static_cast<std::size_t>(i)]);
-    if (x != 0) return std::min(limit, i * 8 + std::countl_zero(x));
-  }
-  return limit;
-}
-
 Prefix Prefix::truncated(int len) const noexcept {
   Prefix p = *this;
   p.length_ = static_cast<std::uint8_t>(len);

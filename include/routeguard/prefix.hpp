@@ -1,7 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <array>
+#include <bit>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -30,7 +33,15 @@ class Prefix {
                                           int length);
 
   // Number of leading bits a and b share, capped at `limit`. Ignores family.
-  static int common_length(const Prefix& a, const Prefix& b, int limit) noexcept;
+  // Two 64-bit XORs + count-leading-zeros: this is the hot loop of the
+  // Patricia trie, so it lives in the header to be inlined.
+  static int common_length(const Prefix& a, const Prefix& b, int limit) noexcept {
+    const std::uint64_t x0 = load_be64(a.bytes_.data()) ^ load_be64(b.bytes_.data());
+    if (x0 != 0) return std::min(limit, std::countl_zero(x0));
+    if (limit <= 64) return limit;
+    const std::uint64_t x1 = load_be64(a.bytes_.data() + 8) ^ load_be64(b.bytes_.data() + 8);
+    return x1 != 0 ? std::min(limit, 64 + std::countl_zero(x1)) : limit;
+  }
 
   // This prefix shortened to `len` bits (len <= length()).
   Prefix truncated(int len) const noexcept;
@@ -55,6 +66,13 @@ class Prefix {
   friend bool operator==(const Prefix&, const Prefix&) = default;
 
  private:
+  static std::uint64_t load_be64(const std::uint8_t* p) noexcept {
+    std::uint64_t v;
+    std::memcpy(&v, p, sizeof v);
+    if constexpr (std::endian::native == std::endian::little) v = __builtin_bswap64(v);
+    return v;
+  }
+
   void clear_host_bits() noexcept;
 
   std::array<std::uint8_t, kMaxBytes> bytes_{};
