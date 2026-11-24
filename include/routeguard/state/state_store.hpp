@@ -120,7 +120,11 @@ class TableReader {
   Changes drain_changes(std::span<SlotId> out);
 
   // Blocks until there are undrained changes or the timeout expires.
-  bool wait_for_changes(std::chrono::nanoseconds timeout);
+  // Spin-then-park: polls for up to `spin` first and only then sleeps on
+  // the futex. Under steady traffic the reader never parks, so the writer
+  // never has to make a FUTEX_WAKE syscall; when idle it costs no CPU.
+  bool wait_for_changes(std::chrono::nanoseconds timeout,
+                        std::chrono::nanoseconds spin = std::chrono::microseconds(50));
 
   bool has_changes() const noexcept;
   std::size_t slot_count() const noexcept;

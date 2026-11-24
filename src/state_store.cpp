@@ -363,10 +363,21 @@ bool TableReader::has_changes() const noexcept {
   return seg_.header()->head.load(std::memory_order_acquire) != cursor_;
 }
 
-bool TableReader::wait_for_changes(std::chrono::nanoseconds timeout) {
+bool TableReader::wait_for_changes(std::chrono::nanoseconds timeout, std::chrono::nanoseconds spin) {
   if (has_changes()) return true;
   Header* h = seg_.header();
-  const auto deadline = std::chrono::steady_clock::now() + timeout;
+  const auto start = std::chrono::steady_clock::now();
+  const auto deadline = start + timeout;
+
+  // Phase 1: spin. steady_clock is only read every 64 iterations.
+  const auto spin_until = start + std::min(spin, timeout);
+  for (unsigned i = 1; spin > std::chrono::nanoseconds::zero(); ++i) {
+    if (has_changes()) return true;
+    cpu_relax();
+    if ((i & 63) == 0 && std::chrono::steady_clock::now() >= spin_until) break;
+  }
+
+  // Phase 2: park on the futex.
 
   h->waiters.fetch_add(1, std::memory_order_seq_cst);
   bool ready = false;
