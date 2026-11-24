@@ -41,6 +41,12 @@ target_link_libraries(routeguard_core PUBLIC routeguard_flags)
 add_executable(routeguard apps/routeguard.cpp)
 target_link_libraries(routeguard PRIVATE routeguard_core)
 
+# Agents: separate processes sharing state through the shared-memory store.
+foreach(agent ingest validator alert)
+  add_executable(routeguard-${agent} apps/agents/${agent}.cpp)
+  target_link_libraries(routeguard-${agent} PRIVATE routeguard_core)
+endforeach()
+
 if(ROUTEGUARD_BUILD_TESTS)
   enable_testing()
   add_executable(routeguard_tests
@@ -59,4 +65,6 @@ if(ROUTEGUARD_BUILD_TESTS)
   add_test(NAME cli_sample
     COMMAND routeguard --roas ${CMAKE_SOURCE_DIR}/data/sample_roas.csv
                        --updates ${CMAKE_SOURCE_DIR}/data/sample_updates.txt)
+  add_test(NAME pipeline
+    COMMAND bash ${CMAKE_SOURCE_DIR}/tests/pipeline_test.sh $<TARGET_FILE_DIR:routeguard> ${CMAKE_SOURCE_DIR}/data)
 endif()

@@ -8,7 +8,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 mode=${1:-debug}
-out=${OUT:-/tmp/rg-build-$mode}
+out=${OUT:-$HOME/.cache/routeguard/build-$mode}
 mkdir -p "$out"
 
 common="-std=c++20 -Wall -Wextra -Wpedantic -Wshadow -Werror -Iinclude -Isrc"
@@ -41,4 +41,5 @@ echo "built into $out"
 if [[ "$mode" != release ]]; then
   "$out/routeguard_tests"
   "$out/routeguard" --roas data/sample_roas.csv --updates data/sample_updates.txt > /dev/null
+  bash tests/pipeline_test.sh "$out" data
 fi
